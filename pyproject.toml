@@ -6,13 +6,14 @@ authors = [
     {name = "erlingpaulsen"}
 ]
 readme = "README.md"
-requires-python = ">=3.9,<3.14"
+requires-python = ">=3.10,<3.14"
 dependencies = [
     "fastapi (>=0.121.2,<0.122.0)",
     "uvicorn[standard] (>=0.38.0,<0.39.0)",
     "jinja2 (>=3.1.6,<4.0.0)",
     "python-multipart (>=0.0.20,<0.0.21)",
     "transformers (>=4.57.1,<5.0.0)",
+    "torch (>=2.9.1,<3.0.0)",
 ]
 
 
