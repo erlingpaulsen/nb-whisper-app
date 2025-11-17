@@ -1,90 +1,118 @@
 {% extends "base.html" %}
 
 {% block content %}
-<section class="card">
-  <h2>Transcribe audio</h2>
-  <form
-    action="/ui/transcribe"
-    method="post"
-    enctype="multipart/form-data"
-    class="form"
-  >
-    <div class="form-row">
-      <label for="file">Audio file</label>
-      <input
-        id="file"
-        type="file"
-        name="file"
-        accept="audio/*"
-        required
-      />
-      <p class="hint">
-        Longer files are supported; audio is chunked into 28 second segments.
-      </p>
-    </div>
+<div class="card mb-4">
+  <div class="card-body">
+    <h2 class="card-title h4 mb-4">Transcribe audio</h2>
+    <form
+      action="/ui/transcribe"
+      method="post"
+      enctype="multipart/form-data"
+    >
+      <div class="mb-3">
+        <label for="file" class="form-label">Audio file</label>
+        <input
+          id="file"
+          type="file"
+          name="file"
+          accept="audio/*"
+          class="form-control"
+          required
+        />
+        <div class="form-text">
+          Longer files are supported; audio is chunked into 28 second segments.
+        </div>
+      </div>
 
-    <div class="form-row">
-      <label for="lang">Language</label>
-      <select id="lang" name="lang">
-        {% for code in languages %}
-        <option value="{{ code }}" {% if code == selected_lang %}selected{% endif %}>
-          {{ code }}
-        </option>
-        {% endfor %}
-      </select>
-      <p class="hint">
-        Default <code>no</code> (Norwegian). You can also use <code>nn</code> for
-        Nynorsk or <code>en</code> for English.
-      </p>
-    </div>
+      <div class="mb-4">
+        <label for="lang" class="form-label">Language</label>
+        <select id="lang" name="lang" class="form-select">
+          {% for code in languages %}
+          <option value="{{ code }}" {% if code == selected_lang %}selected{% endif %}>
+            {{ code }}
+          </option>
+          {% endfor %}
+        </select>
+        <div class="form-text">
+          Default <code>no</code> (Norwegian). You can also use <code>nn</code> for
+          Nynorsk or <code>en</code> for English.
+        </div>
+      </div>
 
-    <div class="form-row">
-      <button type="submit" id="transcribe-btn">
-        <span class="spinner" id="spinner"></span>
+      <button type="submit" id="transcribe-btn" class="btn btn-primary d-inline-flex align-items-center gap-2 px-4">
+        <span class="spinner spinner-border spinner-border-sm d-none" id="spinner" role="status" aria-hidden="true"></span>
         <span id="btn-text">Transcribe</span>
       </button>
-    </div>
-  </form>
-</section>
+    </form>
+  </div>
+</div>
 
 <script>
-  const form = document.querySelector('.form');
+  const form = document.querySelector('form');
   const transcribeBtn = document.getElementById('transcribe-btn');
   const spinner = document.getElementById('spinner');
   const btnText = document.getElementById('btn-text');
 
   form.addEventListener('submit', function() {
     // Show spinner and disable button
-    spinner.classList.add('active');
+    spinner.classList.remove('d-none');
     btnText.textContent = 'Transcribing...';
     transcribeBtn.disabled = true;
   });
 </script>
 
 {% if result_text is not none %}
-<section class="card result-card {% if is_error %}error{% endif %}">
-  <div class="result-header">
-    <div class="result-title">
-      {% if is_error %}
-      <h2>Error log</h2>
-      {% else %}
-      <h2>Transcription</h2>
+<div class="card {% if is_error %}border-danger{% endif %}">
+  <div class="card-body">
+    <h2 class="card-title h4 mb-3">
+      {% if is_error %}Error log{% else %}Transcription{% endif %}
+    </h2>
+    
+    {% if filename and not is_error %}
+    <div class="mb-3 small">
+      <div class="row g-2">
+        <div class="col-auto text-muted" style="width: 140px;">File name:</div>
+        <div class="col">{{ filename }}</div>
+      </div>
+      {% if audio_length %}
+      <div class="row g-2">
+        <div class="col-auto text-muted" style="width: 140px;">Audio length:</div>
+        <div class="col">{{ audio_length }}s</div>
+      </div>
       {% endif %}
-      {% if filename %}
-      <span class="filename">{{ filename }}</span>
+      {% if transcribe_time %}
+      <div class="row g-2">
+        <div class="col-auto text-muted" style="width: 140px;">Transcribe time:</div>
+        <div class="col">{{ transcribe_time }}s</div>
+      </div>
+      {% endif %}
+      {% if word_count %}
+      <div class="row g-2">
+        <div class="col-auto text-muted" style="width: 140px;">Word count:</div>
+        <div class="col">{{ word_count }}</div>
+      </div>
       {% endif %}
     </div>
-    <button type="button" class="copy-btn" onclick="copyResult()">
-      📋 Copy
-    </button>
-  </div>
+    {% endif %}
 
-  <textarea
-    id="result-text"
-    readonly
-    rows="16"
-  >{{ result_text }}</textarea>
-</section>
+    <div class="position-relative">
+      <button 
+        type="button" 
+        class="btn btn-dark position-absolute top-0 end-0 m-2 copy-btn" 
+        onclick="copyResult()"
+        title="Copy to clipboard"
+      >
+        <i class="bi bi-copy fw-bold"></i>
+      </button>
+      <textarea
+        id="result-text"
+        class="form-control font-monospace"
+        readonly
+        rows="16"
+      >{{ result_text }}</textarea>
+    </div>
+  </div>
+</div>
 
 <script>
   function copyResult() {

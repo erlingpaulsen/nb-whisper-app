@@ -1,9 +1,11 @@
 import os
 import tempfile
+import time
 import traceback
 from typing import List, Optional
 
 import torch
+import librosa
 from fastapi import FastAPI, UploadFile, File, Form, Request, HTTPException
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
@@ -68,33 +70,20 @@ class TranscriptionResponse(BaseModel):
 # Core transcription (runs in thread pool)
 # ----------------------------------------------------------
 
-def run_simple_asr(path: str, lang: str):
-    """
-    Run HuggingFace ASR on the given audio file.
-    No WhisperX, no diarization — just stable transcription.
-    """
+def run_asr(path: str, lang: str):
 
     lang = lang or DEFAULT_LANG
 
     output = asr(
         path,
         chunk_length_s=CHUNK_LENGTH,
-        return_timestamps=True,   # sentence-level timestamps
+        return_timestamps=True,
         generate_kwargs={
             "task": "transcribe",
             "language": lang,
             "num_beams": NUM_BEAMS,
         },
     )
-
-    # output format looks like:
-    # {
-    #   'text': '...',
-    #   'chunks': [
-    #       {'text': '...', 'timestamp': (start, end)},
-    #       ...
-    #   ]
-    # }
 
     text = output["text"]
     chunks = output.get("chunks", [])
@@ -160,6 +149,9 @@ async def index(request: Request):
             "result_text": None,
             "filename": None,
             "is_error": False,
+            "transcribe_time": None,
+            "audio_length": None,
+            "word_count": None,
         },
     )
 
@@ -176,15 +168,32 @@ async def transcribe_ui(
 
     result_text = None
     is_error = False
+    transcribe_time = None
+    audio_length = None
+    word_count = None
 
     try:
         data = await file.read()
         with open(tmp_path, "wb") as f:
             f.write(data)
 
-        text, _segments = await run_in_threadpool(run_simple_asr, tmp_path, lang)
+        # Get audio duration using librosa
+        try:
+            y, sr = librosa.load(tmp_path, sr=None)
+            audio_length = round(len(y) / sr, 1)
+        except Exception:
+            audio_length = None
 
-        result_text = text
+        start_time = time.time()
+        text, _segments = await run_in_threadpool(run_asr, tmp_path, lang)
+        end_time = time.time()
+        
+        transcribe_time = round(end_time - start_time, 1)
+        result_text = text.strip()
+        
+        # Calculate word count
+        if result_text:
+            word_count = len(result_text.split())
 
     except Exception:
         result_text = traceback.format_exc()
@@ -203,6 +212,9 @@ async def transcribe_ui(
             "result_text": result_text,
             "filename": file.filename,
             "is_error": is_error,
+            "transcribe_time": transcribe_time,
+            "audio_length": audio_length,
+            "word_count": word_count,
         },
     )
 
