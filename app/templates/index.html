@@ -20,7 +20,7 @@
           required
         />
         <div class="form-text">
-          Longer files are supported; audio is chunked into 28 second segments.
+          Longer files are supported; audio is chunked into 28 second segments. Maximum file size: 1 GB.
         </div>
       </div>
 
@@ -52,8 +52,27 @@
   const transcribeBtn = document.getElementById('transcribe-btn');
   const spinner = document.getElementById('spinner');
   const btnText = document.getElementById('btn-text');
+  const fileInput = document.getElementById('file');
+  const MAX_FILE_SIZE = 1024 * 1024 * 1024; // 1 GB
 
-  form.addEventListener('submit', function() {
+  // Client-side file size validation
+  fileInput.addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (file && file.size > MAX_FILE_SIZE) {
+      alert(`File too large. Maximum size is ${MAX_FILE_SIZE / (1024*1024)} MB. Your file is ${(file.size / (1024*1024)).toFixed(1)} MB.`);
+      fileInput.value = '';
+      return;
+    }
+  });
+
+  form.addEventListener('submit', function(e) {
+    const file = fileInput.files[0];
+    if (file && file.size > MAX_FILE_SIZE) {
+      e.preventDefault();
+      alert(`File too large. Maximum size is ${MAX_FILE_SIZE / (1024*1024)} MB.`);
+      return;
+    }
+    
     // Show spinner and disable button
     spinner.classList.remove('d-none');
     btnText.textContent = 'Transcribing...';

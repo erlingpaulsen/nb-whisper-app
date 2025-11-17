@@ -28,6 +28,9 @@ LANG_CHOICES = ["no", "nn", "en"]
 CHUNK_LENGTH = int(os.getenv("CHUNK_LENGTH", 28))   # 28s recommended
 NUM_BEAMS = int(os.getenv("NUM_BEAMS", 5))          # Higher accuracy, slower
 
+# File upload limits
+MAX_FILE_SIZE = int(os.getenv("MAX_FILE_SIZE", 1024 * 1024 * 1024))  # 1 GB default
+
 app = FastAPI(title="NB-Whisper Simple ASR", version="0.1.0")
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -36,6 +39,10 @@ templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
 static_dir = os.path.join(BASE_DIR, "static")
 if os.path.isdir(static_dir):
     app.mount("/static", StaticFiles(directory=static_dir), name="static")
+
+assets_dir = os.path.join(BASE_DIR, "assets")
+if os.path.isdir(assets_dir):
+    app.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
 
 # ----------------------------------------------------------
 # Load ASR model ONCE at startup
@@ -108,16 +115,23 @@ async def transcribe_api(
     file: UploadFile = File(...),
     lang: str = Form(DEFAULT_LANG),
 ):
+    # Check file size
+    contents = await file.read()
+    if len(contents) > MAX_FILE_SIZE:
+        raise HTTPException(
+            status_code=413, 
+            detail=f"File too large. Maximum size is {MAX_FILE_SIZE // (1024*1024)} MB"
+        )
+    
     suffix = os.path.splitext(file.filename or "")[1] or ".wav"
     fd, tmp_path = tempfile.mkstemp(suffix=suffix)
     os.close(fd)
 
     try:
-        contents = await file.read()
         with open(tmp_path, "wb") as f:
             f.write(contents)
 
-        text, segments = await run_in_threadpool(run_simple_asr, tmp_path, lang)
+        text, segments = await run_in_threadpool(run_asr, tmp_path, lang)
 
         return TranscriptionResponse(
             filename=file.filename,
@@ -162,6 +176,24 @@ async def transcribe_ui(
     file: UploadFile = File(...),
     lang: str = Form(DEFAULT_LANG),
 ):
+    # Check file size first
+    data = await file.read()
+    if len(data) > MAX_FILE_SIZE:
+        return templates.TemplateResponse(
+            "index.html",
+            {
+                "request": request,
+                "languages": LANG_CHOICES,
+                "selected_lang": lang,
+                "result_text": f"File too large. Maximum size is {MAX_FILE_SIZE // (1024*1024)} MB. Your file is {len(data) // (1024*1024)} MB.",
+                "filename": file.filename,
+                "is_error": True,
+                "transcribe_time": None,
+                "audio_length": None,
+                "word_count": None,
+            },
+        )
+    
     suffix = os.path.splitext(file.filename or "")[1] or ".wav"
     fd, tmp_path = tempfile.mkstemp(suffix=suffix)
     os.close(fd)
@@ -173,7 +205,6 @@ async def transcribe_ui(
     word_count = None
 
     try:
-        data = await file.read()
         with open(tmp_path, "wb") as f:
             f.write(data)
 
