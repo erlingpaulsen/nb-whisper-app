@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>NB-Whisper Service</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <h1>NB-Whisper</h1>
+      <p class="subtitle">
+        Norwegian NB Whisper Large Distil Turbo model, developed by the National Library of Norway · 756M model
+      </p>
+    </header>
+
+    <main class="site-main">
+      {% block content %}{% endblock %}
+    </main>
+
+    <footer class="site-footer">
+      <p>Powered by <a href="https://huggingface.co/NbAiLab/nb-whisper-large-distil-turbo-beta">nb-whisper-large-distil-turbo-beta</a> · FastAPI · GPU-ready Docker</p>
+    </footer>
+  </body>
+</html>

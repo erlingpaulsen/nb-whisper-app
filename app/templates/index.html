@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="card">
+  <h2>Transcribe audio</h2>
+  <form
+    action="/ui/transcribe"
+    method="post"
+    enctype="multipart/form-data"
+    class="form"
+  >
+    <div class="form-row">
+      <label for="file">Audio file</label>
+      <input
+        id="file"
+        type="file"
+        name="file"
+        accept="audio/*"
+        required
+      />
+      <p class="hint">
+        Longer files are supported; audio is chunked into ≤ 40&nbsp;seconds per
+        segment.
+      </p>
+    </div>
+
+    <div class="form-row">
+      <label for="lang">Language</label>
+      <select id="lang" name="lang">
+        {% for code in languages %}
+        <option value="{{ code }}" {% if code == selected_lang %}selected{% endif %}>
+          {{ code }}
+        </option>
+        {% endfor %}
+      </select>
+      <p class="hint">
+        Default <code>no</code> (Norwegian). You can also use <code>nn</code> for
+        Nynorsk or <code>en</code> for English.
+      </p>
+    </div>
+
+    <div class="form-row">
+      <button type="submit" id="transcribe-btn">
+        <span class="spinner" id="spinner"></span>
+        <span id="btn-text">Transcribe</span>
+      </button>
+    </div>
+  </form>
+</section>
+
+<script>
+  const form = document.querySelector('.form');
+  const transcribeBtn = document.getElementById('transcribe-btn');
+  const spinner = document.getElementById('spinner');
+  const btnText = document.getElementById('btn-text');
+
+  form.addEventListener('submit', function() {
+    // Show spinner and disable button
+    spinner.classList.add('active');
+    btnText.textContent = 'Transcribing...';
+    transcribeBtn.disabled = true;
+  });
+</script>
+
+{% if result_text is not none %}
+<section class="card result-card {% if is_error %}error{% endif %}">
+  <div class="result-header">
+    <div class="result-title">
+      {% if is_error %}
+      <h2>Error log</h2>
+      {% else %}
+      <h2>Transcription</h2>
+      {% endif %}
+      {% if filename %}
+      <span class="filename">{{ filename }}</span>
+      {% endif %}
+    </div>
+    <button type="button" class="copy-btn" onclick="copyResult()">
+      📋 Copy
+    </button>
+  </div>
+
+  <textarea
+    id="result-text"
+    readonly
+    rows="16"
+  >{{ result_text }}</textarea>
+</section>
+
+<script>
+  function copyResult() {
+    const el = document.getElementById("result-text");
+    if (!el) return;
+    el.select();
+    el.setSelectionRange(0, 999999); // mobile friendly
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(el.value).catch(() => {
+        document.execCommand("copy");
+      });
+    } else {
+      document.execCommand("copy");
+    }
+  }
+</script>
+{% endif %}
+{% endblock %}
